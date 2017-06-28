@@ -1,0 +1,416 @@
+---
+title: "Instacart Exploratory Analysis"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+
+```{r}
+source("readDataToMemory.R")
+readInstacart()
+
+library(DBI)
+library(ggplot2)
+library(ggthemes)
+
+src_tbls(sc)
+```
+
+### Order products
+
+`order_products__*.csv`
+
+These files specify which products were purchased in each order.
+
+```{r}
+dbGetQuery(sc, "SELECT * FROM order_products__prior_tbl LIMIT 10")
+```
+ 
+## orders
+
+`orders.csv`
+
+This file tells to which set (prior, train, test) an order belongs. 
+
+
+```{r}
+orders_prev <- dbGetQuery(sc, "SELECT * FROM orders_tbl LIMIT 100")
+orders_prev
+```
+ 
+```{r}
+dbGetQuery(
+  sc,
+  "
+SELECT COUNT(DISTINCT product_id) AS products
+FROM order_products__prior_tbl
+  "
+  )
+```
+
+```{r}
+products_popularity_txt <- "
+SELECT product_id
+,   COUNT(1) AS n_orders
+FROM order_products__prior_tbl
+GROUP BY product_id
+ORDER BY n_orders DESC
+LIMIT 50
+"
+
+products_popularity <-
+  dbGetQuery(sc, products_popularity_txt)
+
+products_popularity
+```
+
+## Products
+
+`products.csv`
+
+```{r}
+dbGetQuery(sc, "SELECT * FROM products_tbl LIMIT 20")
+```
+
+## Joins
+
+```{r}
+products_popularity_txt <- "
+SELECT op.product_id
+,   n_orders
+,   product_name
+FROM (
+    SELECT product_id
+    ,   COUNT(1) AS n_orders
+    FROM order_products__prior_tbl
+    GROUP BY product_id
+    ORDER BY n_orders DESC
+    LIMIT 30) op
+LEFT JOIN (
+    SELECT product_id
+    ,   product_name
+    FROM products_tbl) p
+ON op.product_id = p.product_id
+"
+
+products_popularity <-
+  dbGetQuery(sc, products_popularity_txt)
+
+products_popularity
+```
+
+```{r}
+
+products_popularity %>%
+  ggplot(
+    aes(reorder(product_name, n_orders, function(x) x), 
+        n_orders)) +
+  geom_bar(stat="identity", fill='darkorange') +
+  coord_flip() + 
+  scale_y_continuous(label=scales::comma) +
+  xlab("product") +
+  ylab("Number of orders") +
+  theme_minimal()
+```
+
+```{r}
+products_popularity_txt <- "
+SELECT op.product_id
+,   n_orders
+,   product_name
+FROM (
+    SELECT product_id
+    ,   COUNT(1) AS n_orders
+    FROM order_products__prior_tbl
+    GROUP BY product_id
+    ORDER BY n_orders DESC
+    LIMIT 30) op
+LEFT JOIN (
+    SELECT product_id
+    ,   product_name
+    FROM products_tbl) p
+ON op.product_id = p.product_id
+"
+
+products_popularity <-
+  dbGetQuery(sc, products_popularity_txt)
+
+products_popularity
+```
+
+## Questions
+
+* Which day of week people order most fequently?
+
+```{r}
+dow_freq_txt <- "
+SELECT order_dow
+,   COUNT(1) AS dow_f
+FROM orders_tbl
+GROUP BY order_dow
+ORDER BY dow_f DESC
+"
+
+dow_frequency <-
+  dbGetQuery(sc, dow_freq_txt)
+
+dow_frequency
+```
+
+* The most popular hour of doing order? 
+
+```{r}
+hod_freq_txt <- "
+SELECT order_hour_of_day
+,   COUNT(1) AS hod_f
+FROM orders_tbl
+GROUP BY order_hour_of_day
+ORDER BY hod_f DESC
+"
+
+hod_frequency <-
+  dbGetQuery(sc, hod_freq_txt)
+
+hod_frequency
+```
+
+* The most reordered products?
+
+```{r}
+most_reord_txt <- "
+SELECT product_id
+,   COUNT(reordered) AS reord
+FROM order_products__prior_tbl
+GROUP BY product_id
+ORDER BY reord DESC
+"
+
+most_reord <-
+  dbGetQuery(sc, most_reord_txt)
+
+most_reord
+```
+
+* The less reorderd product?
+
+```{r}
+least_reord_txt <- "
+SELECT product_id
+,   COUNT(reordered) AS reord
+FROM order_products__prior_tbl
+GROUP BY product_id
+ORDER BY reord
+"
+
+least_reord <-
+  dbGetQuery(sc, least_reord_txt)
+
+least_reord
+```
+
+* Plot histogram of number of products in an order.
+
+```{r}
+n_txt <- "
+SELECT order_id,
+COUNT(1) AS n_ord
+FROM order_products__train_tbl
+GROUP BY order_id
+ORDER BY n_ord DESC
+"
+
+n <-
+  dbGetQuery(sc, n_txt)
+
+n
+```
+
+```{r}
+
+nprod %>%
+  ggplot(
+    aes(reorder(order_id, n_prod, function(x) x), 
+        n_prod)) +
+  geom_bar(stat="identity", fill='darkorange') +
+  coord_flip() + 
+  scale_y_continuous(label=scales::comma) +
+  xlab("order") +
+  ylab("Number of products") +
+  theme_minimal()
+```
+
+
+* What is the most popular department? 
+
+```{r}
+dep_popularity_txt <- "
+SELECT department_id,
+COUNT(1) AS n_ord
+FROM (
+    SELECT product_id
+    ,   COUNT(1) AS n_orders
+    FROM order_products__prior_tbl
+    GROUP BY product_id
+    ORDER BY n_orders DESC) op
+LEFT JOIN (
+    SELECT product_id
+    ,   department_id
+    FROM products_tbl) p
+ON op.product_id = p.product_id
+GROUP BY department_id
+ORDER BY n_ord DESC
+"
+
+dep_popularity <-
+  dbGetQuery(sc, dep_popularity_txt)
+
+dep_popularity
+```
+
+## Whisker, magrittr
+
+```{r}
+library(whisker)
+library(magrittr)
+
+product_times_ordered_txt <- "
+SELECT n_orders
+,   COUNT(DISTINCT user_id) AS n_users
+FROM (
+    SELECT o.user_id
+    ,   COUNT(DISTINCT op.order_id) AS n_orders
+    FROM (
+        SELECT order_id
+        FROM order_products__prior_tbl
+        WHERE product_id = {{productId}}
+    ) op
+    LEFT JOIN (
+        SELECT  user_id
+        ,   order_id
+        FROM orders_tbl) o
+    ON op.order_id = o.order_id
+    GROUP BY o.user_id) opo
+GROUP BY n_orders
+ORDER BY n_orders
+"
+
+data <- list(productId = 24852)
+
+product_times_ordered_txt %>%
+  whisker.render(data) %>%
+  cat
+```
+```{r}
+product_times_ordered_txt %>%
+  whisker.render(data) %>%
+  dbGetQuery(sc, .) %>%
+  ggplot(aes(n_orders, n_users)) + 
+  geom_line() +
+  theme_minimal()
+```
+
+## Questions
+
+* For given department, plot the most popular product (with templating department).
+
+```{r}
+products_popularity_txt <- "
+SELECT op.product_id
+,   n_orders
+,   product_name
+FROM (
+    SELECT product_id
+    ,   COUNT(1) AS n_orders
+    FROM order_products__prior_tbl
+    GROUP BY product_id
+    ORDER BY n_orders DESC) op
+RIGHT JOIN (
+    SELECT product_id
+    ,   product_name
+    FROM products_tbl
+    WHERE department_id = 19) p
+ON op.product_id = p.product_id
+LIMIT 30
+"
+
+products_popularity <-
+  dbGetQuery(sc, products_popularity_txt)
+
+products_popularity
+```
+
+```{r}
+
+products_popularity %>%
+  ggplot(
+    aes(reorder(product_name, n_orders, function(x) x), 
+        n_orders)) +
+  geom_bar(stat="identity", fill='darkorange') +
+  coord_flip() + 
+  scale_y_continuous(label=scales::comma) +
+  xlab("product") +
+  ylab("Number of orders") +
+  theme_minimal()
+```
+
+* For given day, rank department popularity.
+
+```{r}
+dep_popularity_txt <- "
+SELECT department_id,
+COUNT(1) AS n_ord
+FROM (
+    SELECT product_id
+    ,   COUNT(1) AS n_orders
+    FROM order_products__prior_tbl
+    GROUP BY product_id
+    ORDER BY n_orders DESC) op
+LEFT JOIN (
+SELECT order_dow,product_id
+    ,   department_id
+FROM orders_tbl, products_tbl
+) p
+ON op.product_id = p.product_id, a.order_id = op.order_id
+GROUP BY department_id
+ORDER BY n_ord DESC
+"
+
+dep_popularity <-
+  dbGetQuery(sc, dep_popularity_txt)
+
+dep_popularity
+```
+
+## More on orders (Window Functions)
+
+
+
+```{r}
+dbGetQuery(sc, 
+"
+SELECT days_since_prior_order
+,   COUNT(1) AS N
+FROM orders_tbl
+GROUP BY days_since_prior_order
+") 
+```
+
+
+```{r}
+dbGetQuery(sc, 
+"SELECT * 
+FROM orders_tbl
+WHERE user_id <= 10
+")
+```
+```{r}
+dbGetQuery(sc, 
+"SELECT user_id
+,   order_id
+,   FIRST_VALUE(order_id)  OVER(partition by user_id ORDER BY order_number) AS first_order
+FROM orders_tbl
+WHERE user_id <= 10 
+")
+```
+
