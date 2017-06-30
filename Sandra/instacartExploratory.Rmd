@@ -192,7 +192,7 @@ most_reord <-
 most_reord
 ```
 
-* The less reorderd product?
+* The less reordered product?
 
 ```{r}
 least_reord_txt <- "

@@ -1,0 +1,160 @@
+# Session 1
+
+Data Driven Decision Making:
+\begin{itemize}
+\item The impact of our decision must be measurable
+\item Is our argument based on data? Big data or small data
+\item Correlation does not imply causation
+\end{itemize}
+
+Types of data scientists:
+
+1. Data engineer:
+\begin{itemize}
+\item set up infrastructure
+\item transforming unstructured data into structured
+\item some basic analytic
+\item monitoring main metrics
+\end{itemize}
+
+2. Data analyst:
+\begin{itemize}
+\item quering DB
+\item pivoting Excel tables
+\item making excel plots
+\item making Tableau dashboards
+\item A/B Tests
+\end{itemize}
+
+3. Machine learning:
+\begin{itemize}
+\item statistical modeling
+\item deep learning
+\end{itemize}
+
+Hadoop: software used for distributed storage and processing of dataset of big data using the MapReduce programming model.
+
+MapReduce: automatic parallelization of a code.
+
+Hadoop Distributed File System: storage part.
+
+Hive: SQL interface to Hadoop. 
+
+Spark: 
+\begin{itemize}
+\item Spark Core
+\item Spark SQL
+\item Spark Streaming
+\item MLlib Machine Learning Library
+\item GraphX
+\end{itemize}
+
+## Exercise 1: Git & Kaggle
+
+https://github.com/sbartek/big_data_with_R
+
+mkdir BigData
+cd BigData
+git clone https://github.com/sandraorozco/big_data_with_R
+
+Copy the contents of folder bartek to folder Sandra:
+cp -R bartek Sandra
+
+# Session 2
+
+git status
+git add -A
+git commit -m "finishes day 1" 
+git push origin master
+
+# Session 3
+
+\begin{itemize}
+\item Hadoop: system that coordinates lots of computers doing some parallel computation at the same time.
+\item Hive: connects to Hadoop.
+\item Impala: alternative to hive that avoids saving everything to disk.
+\item Spark: another solution. Instead of doing things using queries, you can program them in a language similar to dplyr: sparklyr. sparkR is an alternative, but newer and less stable for the moment. Only problem in sparklyr: you cannot define your own functions. This should be done with sparkR.
+\item Scala: based on java.
+\end{itemize}
+
+Recommender System:
+\begin{itemize}
+\item Collaborative Filtering: try to recommend to a user based on similar users. In order to do that, we have to know the similarity between users.
+\item Content based RS: if a user has seen a romantic film, the system will recommend another romantic film.
+\end{itemize}
+In practice, we do hibrid systems with both of them.
+
+## Factorization method
+
+For each user, we know the products he bought in the past. We could just try to see if a user is similar to another one by similarity in baskets. Computationally very ineffective, not very good results anyway.
+
+Generally, we compute an affinity matrix with users as rows and items as columns. We can use for instance the rating of the person for each item (for instance, films in Netflix), or the number of times the person bought the product.
+
+Very often direct ratings do not reflect what people want to see (people rate documentaries very high but in fact want to see action films).
+
+The problem with these matrix is that they are very sparse.
+
+In order to compute similarity, we could just compute some matrix distance. Euclidean is usually not suitable. Even suitable metrics imply heavy computation.
+
+Better idea: PCA in order to reduce dimensionality.
+
+$$A_{n\times m}\simeq U_{n\times k}\cdot S_{k\times k}\cdot V^{T}_{m\times k}$$
+So for every user we find a k dimensional vector $U_{n\times k}$ that represents him. And now we can use some discrepancy metric in order to find the similarity between users.
+
+And for every product we can do the same in order to know similarity between products.
+
+Now, if we do the product, we have numbers where we had 0s before. Then we can recommend the products with higher new values. Why do we get new values where we had no information?
+
+Let's do directly:
+
+$$A\simeq U_{n\times k}\cdot V^{T}_{m\times k}$$
+When we compute the loss function in order to find U and V, we forget those numbers in the matrix which are 0 (empty).
+That is, we want: $r_{ij}=u_{i}\cdot v_{j}$ and minimize:
+$$\sum_{i,j,r_{ij}\neq0}(r_{ij}-u_{i}\cdot v_{j})^{2}$$
+This is called \textbf{Alternating Least Squares}.
+
+Then for a person, we can add some other features such as age and then do some logistic regression or any other method.
+
+$$u_{i1},\dots,u_{ik},v_{j1},\dots,v_{jk},\text{age}=27,\dots$$
+
+# Project
+
+At least one join and one window function.
+Try to answer a particular question.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
