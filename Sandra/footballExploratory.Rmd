@@ -199,6 +199,16 @@ LIMIT 6
 
 * From where do players with higest accuracy come from?
 
+```{r}
+dbGetQuery(sql_con, "
+SELECT a.id, a.heading_accuracy, b.name
+FROM Player_Attributes a
+LEFT JOIN Country AS b
+ON a.id = b.id
+")
+
+```
+
 * Add team name and translate to dplyr
 
 ```{r}

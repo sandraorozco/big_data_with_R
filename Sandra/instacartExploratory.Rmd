@@ -233,11 +233,41 @@ n %>%
   ggplot(
     aes(reorder(order_id, n_ord, function(x) x), 
         n_ord)) +
-  geom_bar(stat="identity", fill='darkorange') +
+  geom_bar(stat="identity", fill='steelblue') +
   coord_flip() + 
   scale_y_continuous(label=scales::comma) +
   xlab("order") +
   ylab("Number of products") +
+  theme_minimal()
+```
+
+
+```{r}
+dbGetQuery(sc,"
+SELECT n_products,
+COUNT(order_id) AS n_orders
+FROM (
+  SELECT order_id, COUNT(1) AS n_products
+  FROM order_products__prior_tbl
+  GROUP BY order_id) op
+WHERE n_products <= 50
+GROUP BY n_products
+") %>% 
+  ggplot(aes(n_products,n_orders))+
+  geom_col(fill="steelblue")+
+  theme_minimal()
+```
+
+```{r}
+order_products__prior %>%
+  group_by(order_id) %>%
+  summarise(n_products=n())%>%
+  group_by(n_products)%>%
+  summarise(n_orders=n())%>%
+  filter(n_products <= 50) %>%
+  collect%>%
+  ggplot(aes(n_products,n_orders))+
+  geom_col(fill="steelblue")+
   theme_minimal()
 ```
 
@@ -500,19 +530,17 @@ dbGetQuery(sc, .)
 
 ```{r}
 "
-SELECT product_id, product_name,
-,   AVG(products_number) AS avg_products_number
-FROM (
-    SELECT order_id
-    ,   product_id
-    ,   COUNT(product_id)  OVER(partition by order_id) AS products_number
+SELECT pn.product_id, product_name,
+AVG(products_number) AS avg_products_n
+FROM(
+  SELECT order_id,
+    product_id,
+    COUNT(product_id) OVER (partition by order_id) AS products_number
     FROM order_products__train_tbl
-) AS pn INNER JOIN
-products_tbl AS pt
-ON pn.product_id = pt.product_id
-GROUP BY product_id
-ORDER BY avg_products_number DESC
-LIMIT 100
+) pn LEFT JOIN products_tbl t2 ON pn.product_id=t2.product_id
+GROUP BY pn.product_id, product_name
+ORDER BY avg_products_n DESC
+LIMIT 20
 " %>%
 dbGetQuery(sc, .)
 ```
@@ -537,5 +565,33 @@ dbGetQuery(sc, .)
 ```
 
 * For 10 first users and all their orders find days since first order
+
+```{r}
+orders %>%
+  filter(user_id <= 10) %>%
+  select(user_id, order_number, days_since_prior_order) %>%
+  arrange(user_id, order_number) %>%
+  mutate(days_since_first_order = cumsum(days_since_prior_order)) %>%
+  mutate(days_since_first_order=ifelse(is.null(days_since_prior_order), 0, days_since_first_order))
+```
+
+```{r}
+"
+SELECT user_id, order_number, COALESCE(days_since_prior_order,0) AS days_since_prior_order, COALESCE(SUM(days_since_prior_order) OVER
+(PARTITION BY user_id ORDER BY order_number ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW),0) AS days_since_first_order
+FROM orders_tbl
+WHERE user_id <= 10
+"%>%
+dbGetQuery(sc, .)
+```
+
+
+
+
+
+
+
+
+
 
 

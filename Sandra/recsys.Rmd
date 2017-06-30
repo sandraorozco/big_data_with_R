@@ -22,17 +22,24 @@ rating = c(4.0, 2.0, 3.0, 4.0, 1.0, 5.0)
 
 df <- data.frame(user = user, item = item, rating = rating)
 
+# We create the spark data frame
 movie_ratings <- sdf_copy_to(sc, df, "movie_rating", overwrite = TRUE)
 movie_ratings
 
 ```
 
-
+Alternating Least Squares:
 ```{r}
 explicit_model <- ml_als_factorization(movie_ratings, iter.max = 5, regularization.parameter = 0.01)
 explicit_model$item.factors
-```
 
+explicit_model
+```
+If we multiply them we get the recommendation:
+
+```{r}
+as.matrix(explicit_model$user.factors)%*%t(as.matrix(explicit_model$item.factors))
+```
 
 ## R Markdown
 
