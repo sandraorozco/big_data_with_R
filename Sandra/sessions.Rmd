@@ -122,8 +122,7 @@ $$u_{i1},\dots,u_{ik},v_{j1},\dots,v_{jk},\text{age}=27,\dots$$
 At least one join and one window function.
 Try to answer a particular question.
 
-
-
+bartekskorulski@gmail.com
 
 
 

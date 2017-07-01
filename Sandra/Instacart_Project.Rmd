@@ -295,6 +295,3 @@ How to evaluate the recommendation:
 1. Count how many times people buy the recommended product
 2. Count rebuying
 3. If in the long term people spent more
-
-
-bartekskorulski@gmail.com
